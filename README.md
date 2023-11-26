@@ -15,11 +15,9 @@ This distribution of Stockfish consists of the following files:
 
   * README.md - the file you are currently reading.
 
-  * src - a subdirectory containing the full source code, including a
-    Makefile that can be used to compile Stockfish on Unix-like systems.
+  * src - a subdirectory containing the full source code.
 
-  * a file with the .nnue extension, storing the neural network for the NNUE
-    evaluation. Binary distributions will have this file embedded.
+  * Cargo.toml - a cargo file describing the Rust package for ease of compilation.
 
 ## Compiling melsh_bot
 
