@@ -4,7 +4,7 @@ use crate::Color::*;
 use crate::Move::*;
 use crate::PieceType::*;
 use crate::CONSIDERABLE_THRESHOLD;
-use crate::PIECE_VALUES;
+use crate::piece_values::PIECE_VALUES;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::*;
