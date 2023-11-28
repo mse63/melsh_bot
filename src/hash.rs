@@ -1,5 +1,3 @@
-use std::str::from_utf8_unchecked_mut;
-
 use crate::Board;
 use crate::Color::*;
 use crate::Move;
