@@ -142,10 +142,15 @@ fn parse_go(vec: &Vec<&str>) -> UCICommand {
 fn parse_piece_values(vec: &Vec<&str>) -> UCICommand {
     let mut prev = "";
     let mut filename = "".to_string();
-
+    let mut seen_EvalFile = false;
     for s in vec {
         match prev {
-            "EvalFile" => filename = s.to_string(),
+            "EvalFile" => seen_EvalFile = true,
+            "value" => {
+                if seen_EvalFile {
+                    filename = s.to_string();
+                }
+            }
             _ => {}
         }
 
