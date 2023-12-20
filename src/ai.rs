@@ -87,7 +87,7 @@ impl std::cmp::Ord for Eval {
 pub enum Depth {
     RAW,
     CONSIDERABLES,
-    POSDEPTH(i8),
+    POSDEPTH(u8),
 }
 
 impl Depth {
@@ -235,7 +235,7 @@ pub fn bestmove(
     });
     let target_depth = match max_depth {
         None => 100,
-        Some(depth) => i32::min(i32::max(depth, 0), 100) as i8,
+        Some(depth) => i32::min(i32::max(depth, 0), u8::MAX as i32) as u8,
     };
 
     let end_time = Instant::now() + target_time;
@@ -244,7 +244,7 @@ pub fn bestmove(
         0,
         EvalResult {
             sorted_moves: None,
-            depth: POSDEPTH(i8::max_value()),
+            depth: POSDEPTH(u8::max_value()),
             eval: CP(0),
             pruned: false,
         },
