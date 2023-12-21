@@ -275,6 +275,9 @@ pub fn bestmove(
             print!(" {m}");
         }
         println!();
+        if let MATE(_) = score {
+            break;
+        }
     }
     hash_table.get(&child_hash).unwrap().clone()
 }
