@@ -18,22 +18,22 @@ pub const CONSIDERABLE_THRESHOLD: i16 = 100;
 
 fn piece_values(file_path: String) {
     let mut rdr;
-    let mut rdr_result = csv::ReaderBuilder::new()
+    let rdr_result = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(file_path);
     match rdr_result {
-        Ok(T) => rdr = T,
-        Err(E) => {
-            println!("ERROR: {}", E);
+        Ok(t) => rdr = t,
+        Err(e) => {
+            println!("ERROR: {}", e);
             return;
         }
     }
     for (piece, record_result) in rdr.records().enumerate() {
-        let mut record;
+        let record;
         match record_result {
-            Ok(T) => record = T,
-            Err(E) => {
-                println!("ERROR: {}", E);
+            Ok(t) => record = t,
+            Err(e) => {
+                println!("ERROR: {}", e);
                 return;
             }
         }
@@ -71,7 +71,7 @@ enum UCICommand {
 
 fn next_input(stdin: &Stdin) -> UCICommand {
     let mut input = String::new();
-    stdin.read_line(&mut input);
+    let _ = stdin.read_line(&mut input);
     let vec: Vec<&str> = input.split_whitespace().collect();
     match vec.get(0) {
         Some(&"uci") => UCI,
@@ -142,12 +142,12 @@ fn parse_go(vec: &Vec<&str>) -> UCICommand {
 fn parse_piece_values(vec: &Vec<&str>) -> UCICommand {
     let mut prev = "";
     let mut filename = "".to_string();
-    let mut seen_EvalFile = false;
+    let mut seen_evalfile = false;
     for s in vec {
         match prev {
-            "EvalFile" => seen_EvalFile = true,
+            "EvalFile" => seen_evalfile = true,
             "value" => {
-                if seen_EvalFile {
+                if seen_evalfile {
                     filename = s.to_string();
                 }
             }
@@ -173,8 +173,8 @@ fn main() {
             Go {
                 wtime,
                 btime,
-                winc,
-                binc,
+                winc: _,
+                binc: _,
                 depth,
             } => {
                 let time_left = match board.turn {

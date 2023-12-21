@@ -266,14 +266,38 @@ pub fn bestmove(
             &end_time,
             board_hash,
         );
-        println!(
-            "info depth {} score {}",
-            depth,
-            hash_table.get(&child_hash).unwrap().eval,
-        )
+        let score = hash_table.get(&child_hash).unwrap().eval;
+        let mut pv = Vec::new();
+        principal_variation(&mut pv, b, child_hash, &hash_table);
+
+        print!("info depth {depth} score {score} pv");
+        for m in pv{
+            print!(" {m}");
+        }
+        println!();
     }
     hash_table.get(&child_hash).unwrap().clone()
 }
+
+fn principal_variation(moves: &mut Vec<Move>, b: &mut Board, root_hash: BoardHash, hash_table: &HashMap<BoardHash, EvalResult>) {
+    if let Some(eval_result) = hash_table.get(&root_hash) {
+        if let Some(sorted_moves) = &eval_result.sorted_moves {
+            if let Some(m) = sorted_moves.get(0){
+                let child_board_hash = update_hash(b, root_hash, m);
+                b.take_move(&m);
+                let eval_here = eval_result.eval;
+                if let Some(result_from_child) = hash_table.get(&child_board_hash){
+                    if result_from_child.eval.one_higher() == eval_here {
+                        moves.push(m.clone());
+                        principal_variation(moves, b, child_board_hash, hash_table);
+                    }
+                }
+                b.take_move_back(&m)
+            }
+        }
+    }
+}
+
 
 fn minimax(
     b: &mut Board,
@@ -366,6 +390,7 @@ fn minimax(
         return hash;
     }
 
+    //You're not forced to take a considerables move'
     let mut best_eval = if d == CONSIDERABLES {
         eval_board(b)
     } else {
