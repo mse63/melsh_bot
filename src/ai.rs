@@ -234,7 +234,7 @@ pub fn bestmove(
         Some(time) => std::cmp::min((if time < 0 { 0 } else { time as u64 }) / 40, 5000),
     });
     let target_depth = match max_depth {
-        None => 100,
+        None => u8::MAX,
         Some(depth) => i32::min(i32::max(depth, 0), u8::MAX as i32) as u8,
     };
 
@@ -313,17 +313,11 @@ fn minimax(
     hash: BoardHash,
 ) -> BoardHash {
 
-    // Uncomment to check hashes
-    // if hash != hash_board(b) {
-    //     print!("acthash: {:#066b}", hash_board(b));
-    //     b.print_board();
-    //     panic!("HASHES NOT EQUAL!!!");
-    // }
-
     //check for a repeat
     if !is_top_level && hash_set.contains(&hash) {
         return 0;
     }
+
     //check for a table hit
     let mut hit_option: Option<EvalResult> = None;
     match hash_table.get(&hash) {
@@ -340,6 +334,7 @@ fn minimax(
             hit_option = Some((*eval_result).clone());
         }
     }
+
     //handle the base case
     if d == RAW {
         let ans = EvalResult {
@@ -393,7 +388,7 @@ fn minimax(
         return hash;
     }
 
-    //You're not forced to take a considerables move'
+    //You're not forced to take a considerables move
     let mut best_eval = if d == CONSIDERABLES {
         eval_board(b)
     } else {
@@ -413,9 +408,6 @@ fn minimax(
     }
 
     let mut pruned = false;
-
-    //UNCOMMENT TO HANDLE REPEATS DURING SEARCH
-    //hash_set.insert(hash);
 
     for m in &sorted_moves {
         if d == CONSIDERABLES && eval_move(&m) < CONSIDERABLE_THRESHOLD {
@@ -450,8 +442,6 @@ fn minimax(
             break;
         }
     }
-    //UNCOMMENT TO HANDLE REPEATS DURING SEARCH
-    //hash_set.remove(&hash);
 
     sorted_moves.sort_by_key(|m| (*eval_map.get(m).unwrap_or(&MATE(0))).one_higher());
 
