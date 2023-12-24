@@ -2,22 +2,14 @@ use crate::board::*;
 use crate::hash::BoardHash;
 use std::collections::HashSet;
 
-pub fn perft() {
-    let fenstring = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
-    let mut b = Board::from_fen(fenstring.to_string());
-    b.print_board();
+pub fn perft(b: &mut Board, depth: u8) {
     let args: Vec<String> = std::env::args().collect();
-    let depth: i8 = args[1].parse().unwrap();
     let moves = b.get_moves();
     let mut ans = 0;
     for m in moves {
         b.take_move(&m);
-        //println!("took: {}", m);
-        //b.print_board();
-        let n = count_pos(&mut b, depth - 1);
+        let n = count_pos(b, depth - 1);
         b.take_move_back(&m);
-        //println!("took back: {}", m);
-        //b.print_board();
         println!("{}: {}", m, n);
         ans += n;
     }
@@ -38,7 +30,7 @@ pub fn speed_test() {
     }
 }
 
-pub fn count_pos(b: &mut Board, depth: i8) -> usize {
+pub fn count_pos(b: &mut Board, depth: u8) -> usize {
     if depth == 0 {
         return 1;
     }
@@ -57,7 +49,7 @@ pub fn count_pos(b: &mut Board, depth: i8) -> usize {
     }
     return ans;
 }
-pub fn count_pos_unoptimized(b: &mut Board, depth: i8) -> usize {
+pub fn count_pos_unoptimized(b: &mut Board, depth: u8) -> usize {
     if depth == 0 {
         return 1;
     }
@@ -69,7 +61,7 @@ pub fn count_pos_unoptimized(b: &mut Board, depth: i8) -> usize {
     }
     return ans;
 }
-pub fn count_pos_unique(b: &mut Board, depth: i8, set: &mut HashSet<BoardHash>) -> usize {
+pub fn count_pos_unique(b: &mut Board, depth: u8, set: &mut HashSet<BoardHash>) -> usize {
     if depth == 0 {
         let hash = crate::hash::hash_board(b);
         if set.contains(&hash) {

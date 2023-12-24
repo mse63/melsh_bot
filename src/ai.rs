@@ -1,10 +1,10 @@
 use crate::board::*;
 use crate::hash::*;
+use crate::piece_values::PIECE_VALUES;
 use crate::Color::*;
 use crate::Move::*;
 use crate::PieceType::*;
 use crate::CONSIDERABLE_THRESHOLD;
-use crate::piece_values::PIECE_VALUES;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::*;
@@ -27,7 +27,7 @@ impl Eval {
                     MATE(-x)
                 }
             }
-CP(x) => CP(-x),
+            CP(x) => CP(-x),
         }
     }
 }
@@ -271,7 +271,7 @@ pub fn bestmove(
         principal_variation(&mut pv, b, child_hash, &hash_table);
 
         print!("info depth {depth} score {score} pv");
-        for m in pv{
+        for m in pv {
             print!(" {m}");
         }
         println!();
@@ -282,14 +282,19 @@ pub fn bestmove(
     hash_table.get(&child_hash).unwrap().clone()
 }
 
-fn principal_variation(moves: &mut Vec<Move>, b: &mut Board, root_hash: BoardHash, hash_table: &HashMap<BoardHash, EvalResult>) {
+fn principal_variation(
+    moves: &mut Vec<Move>,
+    b: &mut Board,
+    root_hash: BoardHash,
+    hash_table: &HashMap<BoardHash, EvalResult>,
+) {
     if let Some(eval_result) = hash_table.get(&root_hash) {
         if let Some(sorted_moves) = &eval_result.sorted_moves {
-            if let Some(m) = sorted_moves.get(0){
+            if let Some(m) = sorted_moves.get(0) {
                 let child_board_hash = update_hash(b, root_hash, m);
                 b.take_move(&m);
                 let eval_here = eval_result.eval;
-                if let Some(result_from_child) = hash_table.get(&child_board_hash){
+                if let Some(result_from_child) = hash_table.get(&child_board_hash) {
                     if result_from_child.eval.one_higher() == eval_here {
                         moves.push(m.clone());
                         principal_variation(moves, b, child_board_hash, hash_table);
@@ -301,7 +306,6 @@ fn principal_variation(moves: &mut Vec<Move>, b: &mut Board, root_hash: BoardHas
     }
 }
 
-
 fn minimax(
     b: &mut Board,
     d: Depth,
@@ -312,7 +316,6 @@ fn minimax(
     end_time: &Instant,
     hash: BoardHash,
 ) -> BoardHash {
-
     //check for a repeat
     if !is_top_level && hash_set.contains(&hash) {
         return 0;

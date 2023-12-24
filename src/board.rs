@@ -94,10 +94,7 @@ pub struct Piece {
 
 impl Piece {
     pub fn new(color: Color, piece_type: PieceType) -> Self {
-        Self {
-            color,
-            piece_type,
-        }
+        Self { color, piece_type }
     }
 }
 
@@ -229,7 +226,7 @@ impl Board {
     }
 
     pub fn print_board(&self) {
-        for i in 0i8..64i8 {
+        for i in 0..64 {
             if self.passant_square == Some(56 - i + 2 * (i & 0b111)) {
                 print!("--");
             } else {
@@ -246,7 +243,7 @@ impl Board {
                     }
                 );
             }
-            if (i % 8 ) == 7 {
+            if (i % 8) == 7 {
                 println!();
             }
         }

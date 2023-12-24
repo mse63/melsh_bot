@@ -6,13 +6,14 @@ mod piece_values;
 
 use std::{collections::HashSet, io::Stdin};
 
+use crate::piece_values::PIECE_VALUES;
 use ai::*;
 use board::Color::*;
 use board::*;
+use csv::Result;
 use hash::hash_board;
 use hash::BoardHash;
 use UCICommand::*;
-use crate::piece_values::PIECE_VALUES;
 
 pub const CONSIDERABLE_THRESHOLD: i16 = 100;
 
@@ -63,6 +64,9 @@ enum UCICommand {
         binc: Option<i32>,
         depth: Option<i32>,
     },
+    Perft {
+        depth: u8,
+    },
     PieceEvals {
         filename: String,
     },
@@ -106,10 +110,7 @@ fn parse_position(vec: &Vec<&str>) -> UCICommand {
             }
         }
     }
-    Position {
-        fen,
-        move_list,
-    }
+    Position { fen, move_list }
 }
 
 fn parse_go(vec: &Vec<&str>) -> UCICommand {
@@ -122,11 +123,16 @@ fn parse_go(vec: &Vec<&str>) -> UCICommand {
 
     for s in vec {
         match prev {
-            "wtime" => wtime = Some(s.parse::<i32>().unwrap()),
-            "btime" => btime = Some(s.parse::<i32>().unwrap()),
-            "winc" => winc = Some(s.parse::<i32>().unwrap()),
-            "binc" => binc = Some(s.parse::<i32>().unwrap()),
-            "depth" => depth = Some(s.parse::<i32>().unwrap()),
+            "wtime" => wtime = s.parse::<i32>().ok(),
+            "btime" => btime = s.parse::<i32>().ok(),
+            "winc" => winc = s.parse::<i32>().ok(),
+            "binc" => binc = s.parse::<i32>().ok(),
+            "depth" => depth = s.parse::<i32>().ok(),
+            "perft" => {
+                return Perft {
+                    depth: s.parse::<u8>().ok().unwrap_or(1),
+                }
+            }
             _ => {}
         }
 
@@ -190,6 +196,7 @@ fn main() {
                 println!("bestmove {}", best_move);
             }
             PieceEvals { filename } => piece_values(filename),
+            Perft { depth } => perft::perft(&mut board, depth),
             Debug => board.print_board(),
             Quit => break,
         }
