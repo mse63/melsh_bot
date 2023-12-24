@@ -95,8 +95,8 @@ pub struct Piece {
 impl Piece {
     pub fn new(color: Color, piece_type: PieceType) -> Self {
         Self {
-            color: color,
-            piece_type: piece_type,
+            color,
+            piece_type,
         }
     }
 }
@@ -136,7 +136,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn new() -> Self {
+    pub fn blank() -> Self {
         const INIT: Option<Piece> = None;
         Self {
             pieces: [INIT; 64],
@@ -220,20 +220,17 @@ impl Board {
         }
 
         Self {
-            pieces: pieces,
-            passant_square: passant_square,
-            turn: turn,
-            white_king_square: white_king_square,
-            black_king_square: black_king_square,
+            pieces,
+            passant_square,
+            turn,
+            white_king_square,
+            black_king_square,
         }
     }
 
     pub fn print_board(&self) {
         for i in 0i8..64i8 {
-            if (i & 0b111i8) == 0i8 {
-                println!();
-            }
-            if self.passant_square == Some(56i8 - i + 2i8 * (i & 0b111i8)) {
+            if self.passant_square == Some(56 - i + 2 * (i & 0b111)) {
                 print!("--");
             } else {
                 let piece_option = self.pieces[(56 - i + 2 * (i & 0b111)) as usize].as_ref();
@@ -249,8 +246,10 @@ impl Board {
                     }
                 );
             }
+            if (i % 8 ) == 7 {
+                println!();
+            }
         }
-        println!();
         println!(
             "passant_square: {}",
             match self.passant_square {
@@ -262,10 +261,10 @@ impl Board {
                 }
             }
         );
-        println!("piece::WK: {}", square_name(self.white_king_square));
-        println!("piece::BK: {}", square_name(self.black_king_square));
+        println!("White King: {}", square_name(self.white_king_square));
+        println!("Black King: {}", square_name(self.black_king_square));
         println!(
-            "{}",
+            "Turn: {}",
             match self.turn {
                 WHITE => {
                     "WHITE"
@@ -275,8 +274,6 @@ impl Board {
                 }
             }
         );
-        println!();
-        println!();
     }
 
     pub fn is_check(&self) -> bool {
@@ -605,7 +602,7 @@ impl Board {
                                         || threaterpiece.piece_type == BISHOP)
                                 {
                                     pins[i] = Pin {
-                                        ray: ray,
+                                        ray,
                                         index: potential_pin,
                                     }
                                 }
@@ -635,7 +632,7 @@ impl Board {
                                         || threaterpiece.piece_type == ROOK)
                                 {
                                     pins[i] = Pin {
-                                        ray: ray,
+                                        ray,
                                         index: potential_pin,
                                     }
                                 }

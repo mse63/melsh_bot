@@ -66,6 +66,7 @@ enum UCICommand {
     PieceEvals {
         filename: String,
     },
+    Debug,
     Quit,
 }
 
@@ -81,6 +82,7 @@ fn next_input(stdin: &Stdin) -> UCICommand {
         Some(&"position") => parse_position(&vec),
         Some(&"go") => parse_go(&vec),
         Some(&"setoption") => parse_piece_values(&vec),
+        Some(&"d") => Debug,
         _ => next_input(stdin),
     }
 }
@@ -105,8 +107,8 @@ fn parse_position(vec: &Vec<&str>) -> UCICommand {
         }
     }
     Position {
-        fen: fen,
-        move_list: move_list,
+        fen,
+        move_list,
     }
 }
 
@@ -131,11 +133,11 @@ fn parse_go(vec: &Vec<&str>) -> UCICommand {
         prev = s;
     }
     Go {
-        wtime: wtime,
-        btime: btime,
-        winc: winc,
-        binc: binc,
-        depth: depth,
+        wtime,
+        btime,
+        winc,
+        binc,
+        depth,
     }
 }
 
@@ -156,7 +158,7 @@ fn parse_piece_values(vec: &Vec<&str>) -> UCICommand {
 
         prev = s;
     }
-    PieceEvals { filename: filename }
+    PieceEvals { filename }
 }
 
 fn main() {
@@ -188,6 +190,7 @@ fn main() {
                 println!("bestmove {}", best_move);
             }
             PieceEvals { filename } => piece_values(filename),
+            Debug => board.print_board(),
             Quit => break,
         }
     }

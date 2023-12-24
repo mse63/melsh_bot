@@ -27,7 +27,7 @@ impl Eval {
                     MATE(-x)
                 }
             }
-            CP(x) => CP(-x),
+CP(x) => CP(-x),
         }
     }
 }
@@ -449,7 +449,7 @@ fn minimax(
         sorted_moves: Some(sorted_moves),
         depth: d,
         eval: best_eval,
-        pruned: pruned,
+        pruned,
     };
 
     hash_table.insert(hash, ans);
