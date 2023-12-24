@@ -244,7 +244,7 @@ pub fn bestmove(
         0,
         EvalResult {
             sorted_moves: None,
-            depth: POSDEPTH(u8::max_value()),
+            depth: POSDEPTH(u8::MAX),
             eval: CP(0),
             pruned: false,
         },
@@ -373,7 +373,7 @@ fn minimax(
             //a checkmate
             EvalResult {
                 sorted_moves: Some(sorted_moves),
-                depth: d,
+                depth: POSDEPTH(u8::MAX),
                 eval: MATE(0),
                 pruned: false,
             }
@@ -381,7 +381,7 @@ fn minimax(
             //a draw
             EvalResult {
                 sorted_moves: Some(sorted_moves),
-                depth: d,
+                depth: POSDEPTH(u8::MAX),
                 eval: CP(0),
                 pruned: false,
             }
