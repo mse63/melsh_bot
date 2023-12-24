@@ -10,34 +10,18 @@ use crate::piece_values::PIECE_VALUES;
 use ai::*;
 use board::Color::*;
 use board::*;
-use csv::Result;
 use hash::hash_board;
 use hash::BoardHash;
 use UCICommand::*;
 
 pub const CONSIDERABLE_THRESHOLD: i16 = 100;
 
-fn piece_values(file_path: String) {
-    let mut rdr;
-    let rdr_result = csv::ReaderBuilder::new()
+fn piece_values(file_path: String) -> Result<(), csv::Error> {
+    let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
-        .from_path(file_path);
-    match rdr_result {
-        Ok(t) => rdr = t,
-        Err(e) => {
-            println!("ERROR: {}", e);
-            return;
-        }
-    }
+        .from_path(file_path)?;
     for (piece, record_result) in rdr.records().enumerate() {
-        let record;
-        match record_result {
-            Ok(t) => record = t,
-            Err(e) => {
-                println!("ERROR: {}", e);
-                return;
-            }
-        }
+        let record = record_result?;
         for (square, value) in record.into_iter().enumerate() {
             unsafe {
                 //println!("piece: {}, square: {}, value: {}", piece, square, value);
@@ -47,6 +31,7 @@ fn piece_values(file_path: String) {
             }
         }
     }
+    Ok(())
 }
 
 enum UCICommand {
@@ -60,8 +45,8 @@ enum UCICommand {
     Go {
         wtime: Option<i32>,
         btime: Option<i32>,
-        winc: Option<i32>,
-        binc: Option<i32>,
+        _winc: Option<i32>,
+        _binc: Option<i32>,
         depth: Option<i32>,
     },
     Perft {
@@ -117,16 +102,16 @@ fn parse_go(vec: &Vec<&str>) -> UCICommand {
     let mut prev = "";
     let mut wtime = None;
     let mut btime = None;
-    let mut winc = None;
-    let mut binc = None;
+    let mut _winc = None;
+    let mut _binc = None;
     let mut depth = None;
 
     for s in vec {
         match prev {
             "wtime" => wtime = s.parse::<i32>().ok(),
             "btime" => btime = s.parse::<i32>().ok(),
-            "winc" => winc = s.parse::<i32>().ok(),
-            "binc" => binc = s.parse::<i32>().ok(),
+            "winc" => _winc = s.parse::<i32>().ok(),
+            "binc" => _binc = s.parse::<i32>().ok(),
             "depth" => depth = s.parse::<i32>().ok(),
             "perft" => {
                 return Perft {
@@ -141,8 +126,8 @@ fn parse_go(vec: &Vec<&str>) -> UCICommand {
     Go {
         wtime,
         btime,
-        winc,
-        binc,
+        _winc,
+        _binc,
         depth,
     }
 }
@@ -181,8 +166,8 @@ fn main() {
             Go {
                 wtime,
                 btime,
-                winc: _,
-                binc: _,
+                _winc: _,
+                _binc: _,
                 depth,
             } => {
                 let time_left = match board.turn {
@@ -195,7 +180,11 @@ fn main() {
                 println!("info score {}", result.eval);
                 println!("bestmove {}", best_move);
             }
-            PieceEvals { filename } => piece_values(filename),
+            PieceEvals { filename } => {
+                if let Err(e) = piece_values(filename) {
+                    println! {"Error Parsing PieceEvals: {}", e}
+                };
+            }
             Perft { depth } => perft::perft(&mut board, depth),
             Debug => board.print_board(),
             Quit => break,

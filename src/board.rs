@@ -133,7 +133,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn blank() -> Self {
+    pub fn _blank() -> Self {
         const INIT: Option<Piece> = None;
         Self {
             pieces: [INIT; 64],
