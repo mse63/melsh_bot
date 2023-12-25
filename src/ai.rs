@@ -268,7 +268,7 @@ pub fn bestmove(
         );
         let score = hash_table.get(&child_hash).unwrap().eval;
         let mut pv = Vec::new();
-        principal_variation(&mut pv, b, child_hash, &hash_table);
+        principal_variation(&mut pv, b, child_hash, &hash_table, &mut HashMap::new());
 
         print!("info depth {depth} score {score} pv");
         for m in pv {
@@ -287,6 +287,7 @@ fn principal_variation(
     b: &mut Board,
     root_hash: BoardHash,
     hash_table: &HashMap<BoardHash, EvalResult>,
+    position_count: &mut HashMap<BoardHash, u8>,
 ) {
     if let Some(eval_result) = hash_table.get(&root_hash) {
         if let Some(sorted_moves) = &eval_result.sorted_moves {
@@ -297,7 +298,17 @@ fn principal_variation(
                 if let Some(result_from_child) = hash_table.get(&child_board_hash) {
                     if result_from_child.eval.one_higher() == eval_here {
                         moves.push(m.clone());
-                        principal_variation(moves, b, child_board_hash, hash_table);
+                        *position_count.entry(child_board_hash).or_insert(0) += 1;
+                        if let Some(3) = position_count.get(&child_board_hash) {
+                        } else {
+                            principal_variation(
+                                moves,
+                                b,
+                                child_board_hash,
+                                hash_table,
+                                position_count,
+                            );
+                        }
                     }
                 }
                 b.take_move_back(&m)
