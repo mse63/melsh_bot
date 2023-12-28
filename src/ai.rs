@@ -114,15 +114,24 @@ pub fn eval_piece(piece: &Piece, index: usize) -> i16 {
 
 pub fn eval_move(m: &Move) -> i16 {
     match m {
-        SLIDE(from_index, to_index, from_piece, to_piece_option, _) => {
-            eval_piece(from_piece, *to_index as usize)
-                - eval_piece(from_piece, *from_index as usize)
-                + match to_piece_option {
+        SLIDE {
+            from_index,
+            to_index,
+            piece_moved,
+            piece_there,
+            passant_before: _,
+        } => {
+            eval_piece(piece_moved, *to_index as usize)
+                - eval_piece(piece_moved, *from_index as usize)
+                + match piece_there {
                     None => 0,
                     Some(to_piece) => eval_piece(to_piece, *to_index as usize),
                 }
         }
-        PAWNPUSH(from_index, _) => {
+        PAWNPUSH {
+            from_index,
+            passant_before: _,
+        } => {
             if *from_index < 32 {
                 let pawn = Piece::new(WHITE, PAWN);
                 eval_piece(&pawn, (from_index + 16) as usize)
@@ -133,14 +142,25 @@ pub fn eval_move(m: &Move) -> i16 {
                     - eval_piece(&pawn, *from_index as usize)
             }
         }
-        PROMOTION(from_index, to_index, from_piece, to_piece_option, promo, _) => {
-            eval_piece(promo, *to_index as usize) - eval_piece(from_piece, *from_index as usize)
-                + match to_piece_option {
+        PROMOTION {
+            from_index,
+            to_index,
+            piece_moved,
+            piece_there,
+            promotion,
+            passant_before: _,
+        } => {
+            eval_piece(promotion, *to_index as usize)
+                - eval_piece(piece_moved, *from_index as usize)
+                + match piece_there {
                     None => 0,
                     Some(to_piece) => eval_piece(to_piece, *to_index as usize),
                 }
         }
-        PASSANT(from_index, to_index) => {
+        PASSANT {
+            from_index,
+            to_index,
+        } => {
             if *from_index < 32 {
                 eval_piece(&Piece::new(WHITE, PAWN), (to_index + 8) as usize)
                     + eval_piece(&Piece::new(BLACK, PAWN), (*to_index) as usize)
@@ -152,7 +172,10 @@ pub fn eval_move(m: &Move) -> i16 {
             }
         }
 
-        CASTLE(sook_index, _passant_before) => {
+        CASTLE {
+            sook_index,
+            passant_before: _,
+        } => {
             let color = if *sook_index < 32 { WHITE } else { BLACK };
             if (sook_index & 0b111) == 0 {
                 //castle left
@@ -168,36 +191,36 @@ pub fn eval_move(m: &Move) -> i16 {
                     + eval_piece(&Piece::new(color, KING), (*sook_index - 1) as usize)
             }
         }
-        KINGMOVE(
+        KINGMOVE {
             from_index,
             to_index,
-            from_piece,
-            to_piece_option,
+            piece_moved,
+            piece_there,
             castle_left,
             castle_right,
-            _,
-        ) => {
-            let mut ans = eval_piece(from_piece, *to_index as usize)
-                - eval_piece(from_piece, *from_index as usize)
-                + match to_piece_option {
+            passant_before: _,
+        } => {
+            let mut ans = eval_piece(piece_moved, *to_index as usize)
+                - eval_piece(piece_moved, *from_index as usize)
+                + match piece_there {
                     None => 0,
                     Some(to_piece) => eval_piece(to_piece, *to_index as usize),
                 };
             if *castle_left {
                 ans += eval_piece(
-                    &Piece::new(from_piece.color, ROOK),
+                    &Piece::new(piece_moved.color, ROOK),
                     ((from_index >> 3) << 3) as usize,
                 ) - eval_piece(
-                    &Piece::new(from_piece.color, SOOK),
+                    &Piece::new(piece_moved.color, SOOK),
                     ((from_index >> 3) << 3) as usize,
                 );
             }
             if *castle_right {
                 ans += eval_piece(
-                    &Piece::new(from_piece.color, ROOK),
+                    &Piece::new(piece_moved.color, ROOK),
                     (((from_index >> 3) << 3) + 7) as usize,
                 ) - eval_piece(
-                    &Piece::new(from_piece.color, SOOK),
+                    &Piece::new(piece_moved.color, SOOK),
                     (((from_index >> 3) << 3) + 7) as usize,
                 );
             }
@@ -205,6 +228,7 @@ pub fn eval_move(m: &Move) -> i16 {
         }
     }
 }
+
 pub fn eval_board(board: &Board) -> Eval {
     let mut sum = 0;
     for i in 0..64 {

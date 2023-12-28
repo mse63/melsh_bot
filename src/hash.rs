@@ -46,15 +46,24 @@ pub fn hash_board(board: &Board) -> BoardHash {
 
 pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
     let move_hash = match m {
-        SLIDE(from_index, to_index, from_piece, to_piece_option, _) => {
-            hash_piece(*from_piece, *to_index as usize)
-                ^ hash_piece(*from_piece, *from_index as usize)
-                ^ match to_piece_option {
+        SLIDE {
+            from_index,
+            to_index,
+            piece_moved,
+            piece_there,
+            passant_before: _,
+        } => {
+            hash_piece(*piece_moved, *to_index as usize)
+                ^ hash_piece(*piece_moved, *from_index as usize)
+                ^ match piece_there {
                     None => 0,
                     Some(to_piece) => hash_piece(*to_piece, *to_index as usize),
                 }
         }
-        PAWNPUSH(from_index, _) => {
+        PAWNPUSH {
+            from_index,
+            passant_before: _,
+        } => {
             if *from_index < 32 {
                 let pawn = Piece::new(WHITE, PAWN);
                 hash_piece(pawn, (from_index + 16) as usize)
@@ -67,15 +76,25 @@ pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
                     ^ unsafe { PASSANT_HASHES[*from_index as usize - 8] }
             }
         }
-        PROMOTION(from_index, to_index, from_piece, to_piece_option, promo, _) => {
-            hash_piece(*promo, *to_index as usize)
-                ^ hash_piece(*from_piece, *from_index as usize)
-                ^ match to_piece_option {
+        PROMOTION {
+            from_index,
+            to_index,
+            piece_moved,
+            piece_there,
+            promotion,
+            passant_before: _,
+        } => {
+            hash_piece(*promotion, *to_index as usize)
+                ^ hash_piece(*piece_moved, *from_index as usize)
+                ^ match piece_there {
                     None => 0,
                     Some(to_piece) => hash_piece(*to_piece, *to_index as usize),
                 }
         }
-        PASSANT(from_index, to_index) => {
+        PASSANT {
+            from_index,
+            to_index,
+        } => {
             if *from_index < 32 {
                 hash_piece(Piece::new(WHITE, PAWN), (to_index + 8) as usize)
                     ^ hash_piece(Piece::new(BLACK, PAWN), (*to_index) as usize)
@@ -87,7 +106,10 @@ pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
             }
         }
 
-        CASTLE(sook_index, _passant_before) => {
+        CASTLE {
+            sook_index,
+            passant_before: _,
+        } => {
             let color = if *sook_index < 32 { WHITE } else { BLACK };
             if (sook_index & 0b111) == 0 {
                 //castle left
@@ -103,36 +125,36 @@ pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
                     ^ hash_piece(Piece::new(color, KING), (*sook_index - 1) as usize)
             }
         }
-        KINGMOVE(
+        KINGMOVE {
             from_index,
             to_index,
-            from_piece,
-            to_piece_option,
+            piece_moved,
+            piece_there,
             castle_left,
             castle_right,
-            _,
-        ) => {
-            let mut ans = hash_piece(*from_piece, *to_index as usize)
-                ^ hash_piece(*from_piece, *from_index as usize)
-                ^ match to_piece_option {
+            passant_before: _,
+        } => {
+            let mut ans = hash_piece(*piece_moved, *to_index as usize)
+                ^ hash_piece(*piece_moved, *from_index as usize)
+                ^ match piece_there {
                     None => 0,
                     Some(to_piece) => hash_piece(*to_piece, *to_index as usize),
                 };
             if *castle_left {
                 ans ^= hash_piece(
-                    Piece::new(from_piece.color, ROOK),
+                    Piece::new(piece_moved.color, ROOK),
                     ((from_index >> 3) << 3) as usize,
                 ) ^ hash_piece(
-                    Piece::new(from_piece.color, SOOK),
+                    Piece::new(piece_moved.color, SOOK),
                     ((from_index >> 3) << 3) as usize,
                 );
             }
             if *castle_right {
                 ans ^= hash_piece(
-                    Piece::new(from_piece.color, ROOK),
+                    Piece::new(piece_moved.color, ROOK),
                     (((from_index >> 3) << 3) + 7) as usize,
                 ) ^ hash_piece(
-                    Piece::new(from_piece.color, SOOK),
+                    Piece::new(piece_moved.color, SOOK),
                     (((from_index >> 3) << 3) + 7) as usize,
                 );
             }

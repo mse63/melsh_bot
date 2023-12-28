@@ -33,33 +33,96 @@ pub enum PieceType {
 
 #[derive(PartialEq, Debug, Eq, Hash, Clone)]
 pub enum Move {
-    SLIDE(i8, i8, Piece, Option<Piece>, Option<i8>), //to, from, piece_moved, piece_there, passant_before
-    PROMOTION(i8, i8, Piece, Option<Piece>, Piece, Option<i8>), //to, from, piece_moved, piece_there, promotion, passant_before
-    CASTLE(i8, Option<i8>),                                     //rook_index, passant_before
-    KINGMOVE(i8, i8, Piece, Option<Piece>, bool, bool, Option<i8>), //to, from, piece_moved, piece_there, passant_before
-    PAWNPUSH(i8, Option<i8>),                                       //to, passant_before
-    PASSANT(i8, i8),                                                //from, to
+    SLIDE {
+        from_index: i8,
+        to_index: i8,
+        piece_moved: Piece,
+        piece_there: Option<Piece>,
+        passant_before: Option<i8>,
+    },
+    PROMOTION {
+        from_index: i8,
+        to_index: i8,
+        piece_moved: Piece,
+        piece_there: Option<Piece>,
+        promotion: Piece,
+        passant_before: Option<i8>,
+    },
+    CASTLE {
+        sook_index: i8,
+        passant_before: Option<i8>,
+    },
+    KINGMOVE {
+        from_index: i8,
+        to_index: i8,
+        piece_moved: Piece,
+        piece_there: Option<Piece>,
+        castle_left: bool,
+        castle_right: bool,
+        passant_before: Option<i8>,
+    },
+    PAWNPUSH {
+        from_index: i8,
+        passant_before: Option<i8>,
+    },
+    PASSANT {
+        from_index: i8,
+        to_index: i8,
+    },
 }
 
 impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PAWNPUSH(from, _) => {
-                let to = if *from < 32 { *from + 16 } else { *from - 16 };
-                write!(f, "{}{}", square_name(*from), square_name(to))
+            PAWNPUSH {
+                from_index,
+                passant_before: _,
+            } => {
+                let to_index = if *from_index < 32 {
+                    *from_index + 16
+                } else {
+                    *from_index - 16
+                };
+                write!(f, "{}{}", square_name(*from_index), square_name(to_index))
             }
-            PASSANT(from, to) | KINGMOVE(from, to, _, _, _, _, _) | SLIDE(from, to, _, _, _) => {
-                write!(f, "{}{}", square_name(*from), square_name(*to))
+            PASSANT {
+                from_index,
+                to_index,
+            }
+            | KINGMOVE {
+                from_index,
+                to_index,
+                piece_moved: _,
+                piece_there: _,
+                castle_left: _,
+                castle_right: _,
+                passant_before: _,
+            }
+            | SLIDE {
+                from_index,
+                to_index,
+                piece_moved: _,
+                piece_there: _,
+                passant_before: _,
+            } => {
+                write!(f, "{}{}", square_name(*from_index), square_name(*to_index))
             }
 
-            PROMOTION(from, to, piece, _, promo, _) => {
+            PROMOTION {
+                from_index,
+                to_index,
+                piece_moved,
+                piece_there: _,
+                promotion,
+                passant_before: _,
+            } => {
                 write!(
                     f,
                     "{}{}{}",
-                    square_name(*from),
-                    square_name(*to),
-                    if piece.piece_type == PAWN {
-                        match promo.piece_type {
+                    square_name(*from_index),
+                    square_name(*to_index),
+                    if piece_moved.piece_type == PAWN {
+                        match promotion.piece_type {
                             KNIGHT => "n",
                             BISHOP => "b",
                             ROOK => "r",
@@ -71,10 +134,13 @@ impl std::fmt::Display for Move {
                     }
                 )
             }
-            CASTLE(rook_index, _) => write!(
+            CASTLE {
+                sook_index,
+                passant_before: _,
+            } => write!(
                 f,
                 "{}",
-                match rook_index {
+                match sook_index {
                     0 => "e1c1",
                     7 => "e1g1",
                     56 => "e8c8",
@@ -385,17 +451,33 @@ impl Board {
     pub fn take_move(&mut self, m: &Move) {
         self.turn = !self.turn;
         match m {
-            SLIDE(from_index, to_index, from_piece, _to_piece, _passant_before) => {
+            SLIDE {
+                from_index,
+                to_index,
+                piece_moved,
+                piece_there: _,
+                passant_before: _,
+            } => {
                 self.pieces[*from_index as usize] = None;
-                self.pieces[*to_index as usize] = Some(*from_piece);
+                self.pieces[*to_index as usize] = Some(*piece_moved);
                 self.passant_square = None;
             }
-            PROMOTION(from_index, to_index, _from_piece, _to_piece, promotion, _passant_before) => {
+            PROMOTION {
+                from_index,
+                to_index,
+                piece_moved: _,
+                piece_there: _,
+                promotion,
+                passant_before: _,
+            } => {
                 self.pieces[*from_index as usize] = None;
                 self.pieces[*to_index as usize] = Some(*promotion);
                 self.passant_square = None
             }
-            CASTLE(sook_index, _passant_before) => {
+            CASTLE {
+                sook_index,
+                passant_before: _,
+            } => {
                 self.pieces[*sook_index as usize] = None;
                 let color = if *sook_index < 32 { WHITE } else { BLACK };
                 if (sook_index & 0b111) == 0 {
@@ -421,34 +503,37 @@ impl Board {
                 }
                 self.passant_square = None;
             }
-            KINGMOVE(
+            KINGMOVE {
                 from_index,
                 to_index,
-                from_piece,
-                _to_piece,
+                piece_moved,
+                piece_there: _,
                 castle_left,
                 castle_right,
-                _passant_before,
-            ) => {
+                passant_before: _,
+            } => {
                 self.pieces[*from_index as usize] = None;
-                self.pieces[*to_index as usize] = Some(*from_piece);
+                self.pieces[*to_index as usize] = Some(*piece_moved);
                 if *castle_left {
                     self.pieces[((*from_index >> 3) << 3) as usize] =
-                        Some(Piece::new(from_piece.color, ROOK));
+                        Some(Piece::new(piece_moved.color, ROOK));
                 }
                 if *castle_right {
                     self.pieces[(((*from_index >> 3) << 3) + 7) as usize] =
-                        Some(Piece::new(from_piece.color, ROOK));
+                        Some(Piece::new(piece_moved.color, ROOK));
                 }
 
-                match from_piece.color {
+                match piece_moved.color {
                     WHITE => self.white_king_square = *to_index,
                     BLACK => self.black_king_square = *to_index,
                 }
 
                 self.passant_square = None;
             }
-            PAWNPUSH(from_index, _passant_before) => {
+            PAWNPUSH {
+                from_index,
+                passant_before: _,
+            } => {
                 self.pieces[*from_index as usize] = None;
                 if *from_index < 32 {
                     //White pawn being pushed
@@ -460,7 +545,10 @@ impl Board {
                     self.passant_square = Some(from_index - 8)
                 }
             }
-            PASSANT(from_index, _passant_square) => {
+            PASSANT {
+                from_index,
+                to_index: _,
+            } => {
                 self.pieces[*from_index as usize] = None;
                 if *from_index < 32 {
                     //White is being captured
@@ -481,17 +569,33 @@ impl Board {
     pub fn take_move_back(&mut self, m: &Move) {
         self.turn = !self.turn;
         match m {
-            SLIDE(from_index, to_index, from_piece, to_piece, passant_before) => {
-                self.pieces[*from_index as usize] = Some(*from_piece);
-                self.pieces[*to_index as usize] = *to_piece;
+            SLIDE {
+                from_index,
+                to_index,
+                piece_moved,
+                piece_there,
+                passant_before,
+            } => {
+                self.pieces[*from_index as usize] = Some(*piece_moved);
+                self.pieces[*to_index as usize] = *piece_there;
                 self.passant_square = *passant_before;
             }
-            PROMOTION(from_index, to_index, from_piece, to_piece, _promotion, passant_before) => {
-                self.pieces[*from_index as usize] = Some(*from_piece);
-                self.pieces[*to_index as usize] = *to_piece;
+            PROMOTION {
+                from_index,
+                to_index,
+                piece_moved,
+                piece_there,
+                promotion: _,
+                passant_before,
+            } => {
+                self.pieces[*from_index as usize] = Some(*piece_moved);
+                self.pieces[*to_index as usize] = *piece_there;
                 self.passant_square = *passant_before;
             }
-            CASTLE(sook_index, passant_before) => {
+            CASTLE {
+                sook_index,
+                passant_before,
+            } => {
                 let color = if *sook_index < 32 {
                     self.white_king_square = ((sook_index >> 3) << 3) + 4;
                     WHITE
@@ -512,33 +616,36 @@ impl Board {
                 }
                 self.passant_square = *passant_before;
             } //rook_index, passant_before
-            KINGMOVE(
+            KINGMOVE {
                 from_index,
                 to_index,
-                from_piece,
-                to_piece,
+                piece_moved,
+                piece_there,
                 castle_left,
                 castle_right,
                 passant_before,
-            ) => {
-                match from_piece.color {
+            } => {
+                match piece_moved.color {
                     WHITE => self.white_king_square = *from_index,
                     BLACK => self.black_king_square = *from_index,
                 }
-                self.pieces[*from_index as usize] = Some(*from_piece);
-                self.pieces[*to_index as usize] = *to_piece;
+                self.pieces[*from_index as usize] = Some(*piece_moved);
+                self.pieces[*to_index as usize] = *piece_there;
                 if *castle_left {
                     self.pieces[((*from_index >> 3) << 3) as usize] =
-                        Some(Piece::new(from_piece.color, SOOK))
+                        Some(Piece::new(piece_moved.color, SOOK))
                 }
                 if *castle_right {
                     self.pieces[(((*from_index >> 3) << 3) + 7) as usize] =
-                        Some(Piece::new(from_piece.color, SOOK))
+                        Some(Piece::new(piece_moved.color, SOOK))
                 }
 
                 self.passant_square = *passant_before;
             } //to, from, piece_moved, piece_there, passant_before
-            PAWNPUSH(from_index, passant_before) => {
+            PAWNPUSH {
+                from_index,
+                passant_before,
+            } => {
                 if *from_index < 32 {
                     self.pieces[(from_index + 16) as usize] = None;
                     self.pieces[(*from_index) as usize] = Some(Piece::new(WHITE, PAWN))
@@ -548,7 +655,10 @@ impl Board {
                 }
                 self.passant_square = *passant_before;
             }
-            PASSANT(from_index, to_index) => {
+            PASSANT {
+                from_index,
+                to_index,
+            } => {
                 self.passant_square = Some(*to_index);
                 self.pieces[*to_index as usize] = None;
                 if *to_index < 32 {
@@ -655,7 +765,13 @@ impl Board {
             })
         {
             let to_piece = self.pieces[frontier as usize];
-            moves.push(SLIDE(i, frontier, piece, to_piece, self.passant_square));
+            moves.push(SLIDE {
+                from_index: i,
+                to_index: frontier,
+                piece_moved: piece,
+                piece_there: to_piece,
+                passant_before: self.passant_square,
+            });
 
             match to_piece {
                 None => {}
@@ -679,14 +795,14 @@ impl Board {
             })
         {
             let to_piece = self.pieces[frontier as usize];
-            moves.push(PROMOTION(
-                i,
-                frontier,
-                piece,
-                to_piece,
-                Piece::new(piece.color, ROOK),
-                self.passant_square,
-            ));
+            moves.push(PROMOTION {
+                from_index: i,
+                to_index: frontier,
+                piece_moved: piece,
+                piece_there: to_piece,
+                promotion: Piece::new(piece.color, ROOK),
+                passant_before: self.passant_square,
+            });
 
             match to_piece {
                 None => {}
@@ -709,7 +825,10 @@ impl Board {
             None => {}
             Some(p) => {
                 if p.color == color && p.piece_type == PAWN {
-                    let m = PASSANT(passant_square + ray, passant_square);
+                    let m = PASSANT {
+                        from_index: passant_square + ray,
+                        to_index: passant_square,
+                    };
                     if self.is_legal(&m) {
                         moves.push(m);
                     }
@@ -724,23 +843,32 @@ impl Board {
                 None => {
                     if index >> 3 == 6 {
                         for promo in [QUEEN, ROOK, BISHOP, KNIGHT] {
-                            moves.push(PROMOTION(
-                                index,
-                                index + 8,
-                                piece,
-                                None,
-                                Piece::new(piece.color, promo),
-                                self.passant_square,
-                            ));
+                            moves.push(PROMOTION {
+                                from_index: index,
+                                to_index: index + 8,
+                                piece_moved: piece,
+                                piece_there: None,
+                                promotion: Piece::new(piece.color, promo),
+                                passant_before: self.passant_square,
+                            });
                         }
                     } else {
                         if index >> 3 == 1 {
                             match self.pieces[(index + 16) as usize] {
-                                None => moves.push(PAWNPUSH(index, self.passant_square)),
+                                None => moves.push(PAWNPUSH {
+                                    from_index: index,
+                                    passant_before: self.passant_square,
+                                }),
                                 Some(_) => {}
                             }
                         }
-                        moves.push(SLIDE(index, index + 8, piece, None, self.passant_square));
+                        moves.push(SLIDE {
+                            from_index: index,
+                            to_index: index + 8,
+                            piece_moved: piece,
+                            piece_there: None,
+                            passant_before: self.passant_square,
+                        });
                     }
                 }
                 Some(_) => {}
@@ -749,25 +877,34 @@ impl Board {
                 None => {
                     if index >> 3 == 1 {
                         for promo in [QUEEN, ROOK, BISHOP, KNIGHT] {
-                            moves.push(PROMOTION(
-                                index,
-                                index - 8,
-                                piece,
-                                None,
-                                Piece::new(piece.color, promo),
-                                self.passant_square,
-                            ));
+                            moves.push(PROMOTION {
+                                from_index: index,
+                                to_index: index - 8,
+                                piece_moved: piece,
+                                piece_there: None,
+                                promotion: Piece::new(piece.color, promo),
+                                passant_before: self.passant_square,
+                            });
                         }
                     } else {
                         if index >> 3 == 6 {
                             match self.pieces[(index - 16) as usize] {
                                 None => {
-                                    moves.push(PAWNPUSH(index, self.passant_square));
+                                    moves.push(PAWNPUSH {
+                                        from_index: index,
+                                        passant_before: self.passant_square,
+                                    });
                                 }
                                 Some(_) => {}
                             }
                         }
-                        moves.push(SLIDE(index, index - 8, piece, None, self.passant_square));
+                        moves.push(SLIDE {
+                            from_index: index,
+                            to_index: index - 8,
+                            piece_moved: piece,
+                            piece_there: None,
+                            passant_before: self.passant_square,
+                        });
                     }
                 }
                 Some(_) => {}
@@ -797,23 +934,23 @@ impl Board {
                     {
                         let promos = [QUEEN, ROOK, BISHOP, KNIGHT];
                         for promo in promos {
-                            moves.push(PROMOTION(
-                                index,
-                                index + ray,
-                                piece,
-                                potential,
-                                Piece::new(piece.color, promo),
-                                self.passant_square,
-                            ))
+                            moves.push(PROMOTION {
+                                from_index: index,
+                                to_index: index + ray,
+                                piece_moved: piece,
+                                piece_there: potential,
+                                promotion: Piece::new(piece.color, promo),
+                                passant_before: self.passant_square,
+                            })
                         }
                     } else {
-                        moves.push(SLIDE(
-                            index,
-                            index + ray,
-                            piece,
-                            potential,
-                            self.passant_square,
-                        ))
+                        moves.push(SLIDE {
+                            from_index: index,
+                            to_index: index + ray,
+                            piece_moved: piece,
+                            piece_there: potential,
+                            passant_before: self.passant_square,
+                        })
                     }
                 }
             }
@@ -885,13 +1022,13 @@ impl Board {
                                                 Some(p) => p.color != piece.color,
                                             })
                                         {
-                                            moves.push(SLIDE(
-                                                i,
-                                                knightsmove,
-                                                piece,
-                                                self.pieces[knightsmove as usize],
-                                                self.passant_square,
-                                            ));
+                                            moves.push(SLIDE {
+                                                from_index: i,
+                                                to_index: knightsmove,
+                                                piece_moved: piece,
+                                                piece_there: self.pieces[knightsmove as usize],
+                                                passant_before: self.passant_square,
+                                            });
                                         }
                                     }
                                 }
@@ -943,7 +1080,10 @@ impl Board {
                                         && self.is_safe(piece.color, i + 3)
                                         && self.is_safe(piece.color, i + 4)
                                     {
-                                        moves.push(CASTLE(i, self.passant_square))
+                                        moves.push(CASTLE {
+                                            sook_index: i,
+                                            passant_before: self.passant_square,
+                                        })
                                     }
                                 } else {
                                     if match self.pieces[(i - 3) as usize] {
@@ -955,7 +1095,10 @@ impl Board {
                                         && self.is_safe(piece.color, i - 2)
                                         && self.is_safe(piece.color, i - 3)
                                     {
-                                        moves.push(CASTLE(i, self.passant_square))
+                                        moves.push(CASTLE {
+                                            sook_index: i,
+                                            passant_before: self.passant_square,
+                                        })
                                     }
                                 }
                                 for ray in [-8, -1, 1, 8] {
@@ -1002,15 +1145,15 @@ impl Board {
                                                     p.piece_type == SOOK && p.color == piece.color
                                                 }
                                             };
-                                        moves.push(KINGMOVE(
-                                            i,
-                                            kingsmove,
-                                            piece,
-                                            self.pieces[kingsmove as usize],
-                                            can_castle_left,
-                                            can_castle_right,
-                                            self.passant_square,
-                                        ));
+                                        moves.push(KINGMOVE {
+                                            from_index: i,
+                                            to_index: kingsmove,
+                                            piece_moved: piece,
+                                            piece_there: self.pieces[kingsmove as usize],
+                                            castle_left: can_castle_left,
+                                            castle_right: can_castle_right,
+                                            passant_before: self.passant_square,
+                                        });
                                     }
                                 }
                             }
