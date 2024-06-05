@@ -11,7 +11,7 @@ Read the documentation for your GUI of choice for information about how to use c
 
 ## Files
 
-This distribution of Stockfish consists of the following files:
+This repository consists of the following files:
 
   * README.md - the file you are currently reading.
 
