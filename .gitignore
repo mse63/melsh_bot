@@ -1,4 +1,5 @@
 /target
 shell.nix
 Cargo.lock
+.direnv
 .envrc
