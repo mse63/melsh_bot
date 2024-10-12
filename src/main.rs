@@ -7,7 +7,7 @@ mod piece_values;
 
 use std::{collections::HashSet, io::Stdin};
 
-use crate::piece_values::PIECE_VALUES;
+use crate::eval::Evaluator;
 use ai::*;
 use board::Color::*;
 use board::*;
@@ -17,22 +17,20 @@ use UCICommand::*;
 
 pub const CONSIDERABLE_THRESHOLD: i16 = 100;
 
-fn piece_values(file_path: String) -> Result<(), csv::Error> {
+fn piece_values(file_path: String) -> Result<[[[i16; 64]; 7]; 2], csv::Error> {
+    let mut piece_values: [[[i16; 64]; 7]; 2] = [[[0; 64]; 7]; 2];
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(file_path)?;
     for (piece, record_result) in rdr.records().enumerate() {
         let record = record_result?;
         for (square, value) in record.into_iter().enumerate() {
-            unsafe {
-                //println!("piece: {}, square: {}, value: {}", piece, square, value);
-                PIECE_VALUES[0][piece][square] = value.parse::<i16>().unwrap();
-                PIECE_VALUES[1][piece][56 + 2 * (square % 8) - square] =
-                    value.parse::<i16>().unwrap();
-            }
+            //println!("piece: {}, square: {}, value: {}", piece, square, value);
+            piece_values[0][piece][square] = value.parse::<i16>().unwrap();
+            piece_values[1][piece][56 + 2 * (square % 8) - square] = value.parse::<i16>().unwrap();
         }
     }
-    Ok(())
+    Ok(piece_values)
 }
 
 enum UCICommand {
@@ -158,6 +156,9 @@ fn main() {
     let stdin = std::io::stdin();
     let mut board = Board::from_fen(STARTPOS.to_string());
     let mut hash_set = HashSet::new();
+    let mut evaluator = Evaluator::new();
+    let mut ai = AIPlayer::new(evaluator);
+
     loop {
         match next_input(&stdin) {
             UciInit => uci(),
@@ -175,17 +176,21 @@ fn main() {
                     White => wtime,
                     Black => btime,
                 };
-                let result = bestmove(&mut board, &mut hash_set, time_left, depth);
+                let result = ai.bestmove(&mut board, &mut hash_set, time_left, depth);
                 let sorted_moves = result.sorted_moves.unwrap();
                 let best_move = sorted_moves.first().unwrap();
                 println!("info score {}", result.eval);
                 println!("bestmove {}", best_move);
             }
-            PieceEvals { filename } => {
-                if let Err(e) = piece_values(filename) {
+            PieceEvals { filename } => match piece_values(filename) {
+                Err(e) => {
                     println! {"Error Parsing PieceEvals: {}", e}
-                };
-            }
+                }
+                Ok(piece_values) => {
+                    evaluator = Evaluator::from_piece_values(piece_values);
+                    ai = AIPlayer::new(evaluator);
+                }
+            },
             Perft { depth } => perft::perft(&mut board, depth),
             Debug => board.print_board(),
             Quit => break,
