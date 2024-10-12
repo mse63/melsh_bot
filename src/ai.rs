@@ -1,101 +1,27 @@
 use crate::board::*;
+use crate::eval::Eval::*;
+use crate::eval::*;
 use crate::hash::*;
-use crate::piece_values::PIECE_VALUES;
-use crate::Color::*;
-use crate::Move::*;
-use crate::PieceType::*;
+
 use crate::CONSIDERABLE_THRESHOLD;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::*;
 use Depth::*;
-use Eval::*;
 
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub enum Eval {
-    MATE(i8),
-    CP(i16),
-}
-
-impl Eval {
-    pub fn one_higher(&self) -> Eval {
-        match self {
-            MATE(x) => {
-                if *x <= 0 {
-                    MATE(-x + 1)
-                } else {
-                    MATE(-x)
-                }
-            }
-            CP(x) => CP(-x),
-        }
-    }
-}
-
-impl std::fmt::Display for Eval {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MATE(i) => {
-                write!(f, "mate {}", i)
-            }
-            CP(i) => {
-                write!(f, "cp {}", i)
-            }
-        }
-    }
-}
-
-impl std::cmp::PartialOrd for Eval {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl std::cmp::Ord for Eval {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match (*self, *other) {
-            (CP(s), CP(o)) => s.cmp(&o),
-            (MATE(s), CP(_)) => {
-                if s == 0 {
-                    std::cmp::Ordering::Less
-                } else {
-                    s.cmp(&0)
-                }
-            }
-            (CP(_), MATE(o)) => {
-                if o == 0 {
-                    std::cmp::Ordering::Greater
-                } else {
-                    0.cmp(&o)
-                }
-            }
-            (MATE(s), MATE(o)) => {
-                if s.signum() == o.signum() {
-                    o.cmp(&s)
-                } else if s == 0 {
-                    std::cmp::Ordering::Less
-                } else if o == 0 {
-                    std::cmp::Ordering::Greater
-                } else {
-                    s.cmp(&o)
-                }
-            }
-        }
-    }
-}
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Depth {
-    RAW,
-    CONSIDERABLES,
-    POSDEPTH(u8),
+    Raw,
+    Considerables,
+    Pos(u8),
 }
 
 impl Depth {
     pub fn one_lower(&self) -> Depth {
         match self {
-            RAW => RAW,
-            POSDEPTH(1) | CONSIDERABLES => CONSIDERABLES,
-            POSDEPTH(d) => POSDEPTH(d - 1),
+            Raw => Raw,
+            Pos(1) | Considerables => Considerables,
+            Pos(d) => Pos(d - 1),
         }
     }
 }
@@ -106,145 +32,6 @@ pub struct EvalResult {
     pub depth: Depth,
     pub eval: Eval,
     pub pruned: bool,
-}
-
-pub fn eval_piece(piece: &Piece, index: usize) -> i16 {
-    unsafe { PIECE_VALUES[piece.color as usize][piece.piece_type as usize][index] }
-}
-
-pub fn eval_move(m: &Move) -> i16 {
-    match m {
-        SLIDE {
-            from_index,
-            to_index,
-            piece_moved,
-            piece_there,
-            passant_before: _,
-        } => {
-            eval_piece(piece_moved, *to_index as usize)
-                - eval_piece(piece_moved, *from_index as usize)
-                + match piece_there {
-                    None => 0,
-                    Some(to_piece) => eval_piece(to_piece, *to_index as usize),
-                }
-        }
-        PAWNPUSH {
-            from_index,
-            passant_before: _,
-        } => {
-            if *from_index < 32 {
-                let pawn = Piece::new(WHITE, PAWN);
-                eval_piece(&pawn, (from_index + 16) as usize)
-                    - eval_piece(&pawn, *from_index as usize)
-            } else {
-                let pawn = Piece::new(BLACK, PAWN);
-                eval_piece(&pawn, (from_index - 16) as usize)
-                    - eval_piece(&pawn, *from_index as usize)
-            }
-        }
-        PROMOTION {
-            from_index,
-            to_index,
-            piece_moved,
-            piece_there,
-            promotion,
-            passant_before: _,
-        } => {
-            eval_piece(promotion, *to_index as usize)
-                - eval_piece(piece_moved, *from_index as usize)
-                + match piece_there {
-                    None => 0,
-                    Some(to_piece) => eval_piece(to_piece, *to_index as usize),
-                }
-        }
-        PASSANT {
-            from_index,
-            to_index,
-        } => {
-            if *from_index < 32 {
-                eval_piece(&Piece::new(WHITE, PAWN), (to_index + 8) as usize)
-                    + eval_piece(&Piece::new(BLACK, PAWN), (*to_index) as usize)
-                    - eval_piece(&Piece::new(BLACK, PAWN), (*from_index) as usize)
-            } else {
-                eval_piece(&Piece::new(BLACK, PAWN), (to_index - 8) as usize)
-                    + eval_piece(&Piece::new(WHITE, PAWN), (*to_index) as usize)
-                    - eval_piece(&Piece::new(WHITE, PAWN), (*from_index) as usize)
-            }
-        }
-
-        CASTLE {
-            sook_index,
-            passant_before: _,
-        } => {
-            let color = if *sook_index < 32 { WHITE } else { BLACK };
-            if (sook_index & 0b111) == 0 {
-                //castle left
-                -eval_piece(&Piece::new(color, SOOK), (*sook_index) as usize)
-                    + eval_piece(&Piece::new(color, ROOK), (*sook_index + 3) as usize)
-                    - eval_piece(&Piece::new(color, KING), (*sook_index + 4) as usize)
-                    + eval_piece(&Piece::new(color, KING), (*sook_index + 2) as usize)
-            } else {
-                //castle right
-                -eval_piece(&Piece::new(color, SOOK), (*sook_index) as usize)
-                    + eval_piece(&Piece::new(color, ROOK), (*sook_index - 2) as usize)
-                    - eval_piece(&Piece::new(color, KING), (*sook_index - 3) as usize)
-                    + eval_piece(&Piece::new(color, KING), (*sook_index - 1) as usize)
-            }
-        }
-        KINGMOVE {
-            from_index,
-            to_index,
-            piece_moved,
-            piece_there,
-            castle_left,
-            castle_right,
-            passant_before: _,
-        } => {
-            let mut ans = eval_piece(piece_moved, *to_index as usize)
-                - eval_piece(piece_moved, *from_index as usize)
-                + match piece_there {
-                    None => 0,
-                    Some(to_piece) => eval_piece(to_piece, *to_index as usize),
-                };
-            if *castle_left {
-                ans += eval_piece(
-                    &Piece::new(piece_moved.color, ROOK),
-                    ((from_index >> 3) << 3) as usize,
-                ) - eval_piece(
-                    &Piece::new(piece_moved.color, SOOK),
-                    ((from_index >> 3) << 3) as usize,
-                );
-            }
-            if *castle_right {
-                ans += eval_piece(
-                    &Piece::new(piece_moved.color, ROOK),
-                    (((from_index >> 3) << 3) + 7) as usize,
-                ) - eval_piece(
-                    &Piece::new(piece_moved.color, SOOK),
-                    (((from_index >> 3) << 3) + 7) as usize,
-                );
-            }
-            ans
-        }
-    }
-}
-
-pub fn eval_board(board: &Board) -> Eval {
-    let mut sum = 0;
-    for i in 0..64 {
-        let piece_option = board.pieces[i];
-        match piece_option {
-            None => {}
-            Some(piece) => {
-                if piece.color == board.turn {
-                    sum += eval_piece(&piece, i)
-                } else {
-                    sum -= eval_piece(&piece, i)
-                }
-            }
-        }
-    }
-    CP(sum)
 }
 
 pub fn bestmove(
@@ -268,8 +55,8 @@ pub fn bestmove(
         0,
         EvalResult {
             sorted_moves: None,
-            depth: POSDEPTH(u8::MAX),
-            eval: CP(0),
+            depth: Pos(u8::MAX),
+            eval: CentiPawns(0),
             pruned: false,
         },
     );
@@ -282,8 +69,8 @@ pub fn bestmove(
         }
         child_hash = minimax(
             b,
-            POSDEPTH(depth),
-            MATE(0),
+            Pos(depth),
+            Mate(0),
             &mut hash_table,
             hash_set,
             true,
@@ -299,7 +86,7 @@ pub fn bestmove(
             print!(" {m}");
         }
         println!();
-        if let MATE(_) = score {
+        if let Mate(_) = score {
             break;
         }
     }
@@ -315,9 +102,9 @@ fn principal_variation(
 ) {
     if let Some(eval_result) = hash_table.get(&root_hash) {
         if let Some(sorted_moves) = &eval_result.sorted_moves {
-            if let Some(m) = sorted_moves.get(0) {
+            if let Some(m) = sorted_moves.first() {
                 let child_board_hash = update_hash(b, root_hash, m);
-                b.take_move(&m);
+                b.take_move(m);
                 let eval_here = eval_result.eval;
                 if let Some(result_from_child) = hash_table.get(&child_board_hash) {
                     if result_from_child.eval.one_higher() == eval_here {
@@ -335,7 +122,7 @@ fn principal_variation(
                         }
                     }
                 }
-                b.take_move_back(&m)
+                b.take_move_back(m)
             }
         }
     }
@@ -365,7 +152,7 @@ fn minimax(
                 //if this eval wasn't pruned, or if the eval is good enough to not be
                 if eval_result.depth >= d {
                     return hash;
-                } else if let MATE(_) = eval_result.eval {
+                } else if let Mate(_) = eval_result.eval {
                     return hash;
                 }
             }
@@ -374,11 +161,11 @@ fn minimax(
     }
 
     //handle the base case
-    if d == RAW {
+    if d == Raw {
         let ans = EvalResult {
             sorted_moves: None,
             depth: d,
-            eval: eval_board(&b),
+            eval: eval_board(b),
             pruned: false,
         };
         hash_table.insert(hash, ans);
@@ -403,21 +190,21 @@ fn minimax(
     };
 
     //handle end of game
-    if sorted_moves.len() == 0 {
+    if sorted_moves.is_empty() {
         let ans = if b.is_check() {
             //a checkmate
             EvalResult {
                 sorted_moves: Some(sorted_moves),
-                depth: POSDEPTH(u8::MAX),
-                eval: MATE(0),
+                depth: Pos(u8::MAX),
+                eval: Mate(0),
                 pruned: false,
             }
         } else {
             //a draw
             EvalResult {
                 sorted_moves: Some(sorted_moves),
-                depth: POSDEPTH(u8::MAX),
-                eval: CP(0),
+                depth: Pos(u8::MAX),
+                eval: CentiPawns(0),
                 pruned: false,
             }
         };
@@ -427,18 +214,18 @@ fn minimax(
     }
 
     //You're not forced to take a considerables move
-    let mut best_eval = if d == CONSIDERABLES {
+    let mut best_eval = if d == Considerables {
         eval_board(b)
     } else {
-        MATE(0)
+        Mate(0)
     };
     let mut eval_map = HashMap::new();
 
-    if d == CONSIDERABLES && eval_move(&(sorted_moves.get(0).unwrap())) < CONSIDERABLE_THRESHOLD {
+    if d == Considerables && eval_move(sorted_moves.first().unwrap()) < CONSIDERABLE_THRESHOLD {
         let ans = EvalResult {
             sorted_moves: Some(sorted_moves),
             depth: d,
-            eval: eval_board(&b),
+            eval: eval_board(b),
             pruned: false,
         };
         hash_table.insert(hash, ans);
@@ -448,11 +235,11 @@ fn minimax(
     let mut pruned = false;
 
     for m in &sorted_moves {
-        if d == CONSIDERABLES && eval_move(&m) < CONSIDERABLE_THRESHOLD {
+        if d == Considerables && eval_move(m) < CONSIDERABLE_THRESHOLD {
             break;
         }
         let child_board_hash = update_hash(b, hash, m);
-        b.take_move(&m);
+        b.take_move(m);
         let hash_of_child = minimax(
             b,
             d.one_lower(),
@@ -469,19 +256,19 @@ fn minimax(
         if eval_from_child > best_eval {
             best_eval = eval_from_child;
             if eval_from_child.one_higher() <= prune_eval {
-                b.take_move_back(&m);
+                b.take_move_back(m);
                 pruned = true;
                 break;
             }
         }
-        b.take_move_back(&m);
+        b.take_move_back(m);
 
         if is_top_level && Instant::now() > *end_time {
             break;
         }
     }
 
-    sorted_moves.sort_by_key(|m| (*eval_map.get(m).unwrap_or(&MATE(0))).one_higher());
+    sorted_moves.sort_by_key(|m| (*eval_map.get(m).unwrap_or(&Mate(0))).one_higher());
 
     let ans = EvalResult {
         sorted_moves: Some(sorted_moves),
@@ -491,5 +278,5 @@ fn minimax(
     };
 
     hash_table.insert(hash, ans);
-    return hash;
+    hash
 }

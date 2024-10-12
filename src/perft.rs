@@ -46,7 +46,7 @@ pub fn count_pos(b: &mut Board, depth: u8) -> usize {
         //println!("took back: {}", m);
         //b.print_board();
     }
-    return ans;
+    ans
 }
 pub fn _count_pos_unoptimized(b: &mut Board, depth: u8) -> usize {
     if depth == 0 {
@@ -58,7 +58,7 @@ pub fn _count_pos_unoptimized(b: &mut Board, depth: u8) -> usize {
         ans += _count_pos_unoptimized(b, depth - 1);
         b.take_move_back(&m);
     }
-    return ans;
+    ans
 }
 pub fn _count_pos_unique(b: &mut Board, depth: u8, set: &mut HashSet<BoardHash>) -> usize {
     if depth == 0 {
@@ -76,5 +76,5 @@ pub fn _count_pos_unique(b: &mut Board, depth: u8, set: &mut HashSet<BoardHash>)
         ans += _count_pos_unique(b, depth - 1, set);
         b.take_move_back(&m);
     }
-    return ans;
+    ans
 }

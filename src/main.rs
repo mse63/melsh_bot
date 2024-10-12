@@ -1,5 +1,6 @@
 mod ai;
 mod board;
+mod eval;
 mod hash;
 mod perft;
 mod piece_values;
@@ -35,9 +36,9 @@ fn piece_values(file_path: String) -> Result<(), csv::Error> {
 }
 
 enum UCICommand {
-    UCI,
+    UciInit,
     IsReady,
-    UCINewGame,
+    UciNewGame,
     Position {
         fen: String,
         move_list: Vec<String>,
@@ -63,10 +64,10 @@ fn next_input(stdin: &Stdin) -> UCICommand {
     let mut input = String::new();
     let _ = stdin.read_line(&mut input);
     let vec: Vec<&str> = input.split_whitespace().collect();
-    match vec.get(0) {
-        Some(&"uci") => UCI,
+    match vec.first() {
+        Some(&"uci") => UciInit,
         Some(&"isready") => IsReady,
-        Some(&"ucinewgame") => UCINewGame,
+        Some(&"ucinewgame") => UciNewGame,
         Some(&"quit") => Quit,
         Some(&"position") => parse_position(&vec),
         Some(&"go") => parse_go(&vec),
@@ -89,7 +90,7 @@ fn parse_position(vec: &Vec<&str>) -> UCICommand {
                 if seen_moves {
                     move_list.push(s.to_string())
                 } else {
-                    fen.push_str(" ");
+                    fen.push(' ');
                     fen.push_str(s)
                 }
             }
@@ -159,9 +160,9 @@ fn main() {
     let mut hash_set = HashSet::new();
     loop {
         match next_input(&stdin) {
-            UCI => uci(),
+            UciInit => uci(),
             IsReady => isready(),
-            UCINewGame => board = Board::from_fen(STARTPOS.to_string()),
+            UciNewGame => board = Board::from_fen(STARTPOS.to_string()),
             Position { fen, move_list } => (board, hash_set) = position(fen, move_list),
             Go {
                 wtime,
@@ -171,12 +172,12 @@ fn main() {
                 depth,
             } => {
                 let time_left = match board.turn {
-                    WHITE => wtime,
-                    BLACK => btime,
+                    White => wtime,
+                    Black => btime,
                 };
                 let result = bestmove(&mut board, &mut hash_set, time_left, depth);
                 let sorted_moves = result.sorted_moves.unwrap();
-                let best_move = sorted_moves.get(0).unwrap();
+                let best_move = sorted_moves.first().unwrap();
                 println!("info score {}", result.eval);
                 println!("bestmove {}", best_move);
             }

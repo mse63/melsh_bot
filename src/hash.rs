@@ -10,15 +10,13 @@ static mut PIECE_HASHES: [[[BoardHash; 64]; 7]; 2] = [[[0; 64]; 7]; 2];
 static mut PASSANT_HASHES: [BoardHash; 64] = [0; 64];
 
 pub fn init_hashes() {
-    for c in 0..2 {
-        for p in 0..7 {
-            for i in 0..64 {
-                unsafe {
-                    PIECE_HASHES[c][p][i] = random();
-                    PASSANT_HASHES[i] = random();
-                }
-            }
-        }
+    unsafe {
+        PIECE_HASHES
+            .iter_mut()
+            .flatten()
+            .flatten()
+            .for_each(|x| *x = random());
+        PASSANT_HASHES.iter_mut().for_each(|x| *x = random());
     }
 }
 
@@ -35,7 +33,7 @@ pub fn hash_board(board: &Board) -> BoardHash {
             Some(piece) => hash ^= hash_piece(piece, i),
         }
     }
-    if board.turn == BLACK {
+    if board.turn == Black {
         hash ^= BoardHash::MAX;
     }
     match board.passant_square {
@@ -46,7 +44,7 @@ pub fn hash_board(board: &Board) -> BoardHash {
 
 pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
     let move_hash = match m {
-        SLIDE {
+        Slide {
             from_index,
             to_index,
             piece_moved,
@@ -60,23 +58,23 @@ pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
                     Some(to_piece) => hash_piece(*to_piece, *to_index as usize),
                 }
         }
-        PAWNPUSH {
+        PawnPush {
             from_index,
             passant_before: _,
         } => {
             if *from_index < 32 {
-                let pawn = Piece::new(WHITE, PAWN);
+                let pawn = Piece::new(White, Pawn);
                 hash_piece(pawn, (from_index + 16) as usize)
                     ^ hash_piece(pawn, *from_index as usize)
                     ^ unsafe { PASSANT_HASHES[*from_index as usize + 8] }
             } else {
-                let pawn = Piece::new(BLACK, PAWN);
+                let pawn = Piece::new(Black, Pawn);
                 hash_piece(pawn, (from_index - 16) as usize)
                     ^ hash_piece(pawn, *from_index as usize)
                     ^ unsafe { PASSANT_HASHES[*from_index as usize - 8] }
             }
         }
-        PROMOTION {
+        Promotion {
             from_index,
             to_index,
             piece_moved,
@@ -91,41 +89,41 @@ pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
                     Some(to_piece) => hash_piece(*to_piece, *to_index as usize),
                 }
         }
-        PASSANT {
+        Passant {
             from_index,
             to_index,
         } => {
             if *from_index < 32 {
-                hash_piece(Piece::new(WHITE, PAWN), (to_index + 8) as usize)
-                    ^ hash_piece(Piece::new(BLACK, PAWN), (*to_index) as usize)
-                    ^ hash_piece(Piece::new(BLACK, PAWN), (*from_index) as usize)
+                hash_piece(Piece::new(White, Pawn), (to_index + 8) as usize)
+                    ^ hash_piece(Piece::new(Black, Pawn), (*to_index) as usize)
+                    ^ hash_piece(Piece::new(Black, Pawn), (*from_index) as usize)
             } else {
-                hash_piece(Piece::new(BLACK, PAWN), (to_index - 8) as usize)
-                    ^ hash_piece(Piece::new(WHITE, PAWN), (*to_index) as usize)
-                    ^ hash_piece(Piece::new(WHITE, PAWN), (*from_index) as usize)
+                hash_piece(Piece::new(Black, Pawn), (to_index - 8) as usize)
+                    ^ hash_piece(Piece::new(White, Pawn), (*to_index) as usize)
+                    ^ hash_piece(Piece::new(White, Pawn), (*from_index) as usize)
             }
         }
 
-        CASTLE {
+        Castle {
             sook_index,
             passant_before: _,
         } => {
-            let color = if *sook_index < 32 { WHITE } else { BLACK };
+            let color = if *sook_index < 32 { White } else { Black };
             if (sook_index & 0b111) == 0 {
                 //castle left
-                hash_piece(Piece::new(color, SOOK), (*sook_index) as usize)
-                    ^ hash_piece(Piece::new(color, ROOK), (*sook_index + 3) as usize)
-                    ^ hash_piece(Piece::new(color, KING), (*sook_index + 4) as usize)
-                    ^ hash_piece(Piece::new(color, KING), (*sook_index + 2) as usize)
+                hash_piece(Piece::new(color, Sook), (*sook_index) as usize)
+                    ^ hash_piece(Piece::new(color, Rook), (*sook_index + 3) as usize)
+                    ^ hash_piece(Piece::new(color, King), (*sook_index + 4) as usize)
+                    ^ hash_piece(Piece::new(color, King), (*sook_index + 2) as usize)
             } else {
                 //castle right
-                hash_piece(Piece::new(color, SOOK), (*sook_index) as usize)
-                    ^ hash_piece(Piece::new(color, ROOK), (*sook_index - 2) as usize)
-                    ^ hash_piece(Piece::new(color, KING), (*sook_index - 3) as usize)
-                    ^ hash_piece(Piece::new(color, KING), (*sook_index - 1) as usize)
+                hash_piece(Piece::new(color, Sook), (*sook_index) as usize)
+                    ^ hash_piece(Piece::new(color, Rook), (*sook_index - 2) as usize)
+                    ^ hash_piece(Piece::new(color, King), (*sook_index - 3) as usize)
+                    ^ hash_piece(Piece::new(color, King), (*sook_index - 1) as usize)
             }
         }
-        KINGMOVE {
+        KingMOVE {
             from_index,
             to_index,
             piece_moved,
@@ -142,19 +140,19 @@ pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
                 };
             if *castle_left {
                 ans ^= hash_piece(
-                    Piece::new(piece_moved.color, ROOK),
+                    Piece::new(piece_moved.color, Rook),
                     ((from_index >> 3) << 3) as usize,
                 ) ^ hash_piece(
-                    Piece::new(piece_moved.color, SOOK),
+                    Piece::new(piece_moved.color, Sook),
                     ((from_index >> 3) << 3) as usize,
                 );
             }
             if *castle_right {
                 ans ^= hash_piece(
-                    Piece::new(piece_moved.color, ROOK),
+                    Piece::new(piece_moved.color, Rook),
                     (((from_index >> 3) << 3) + 7) as usize,
                 ) ^ hash_piece(
-                    Piece::new(piece_moved.color, SOOK),
+                    Piece::new(piece_moved.color, Sook),
                     (((from_index >> 3) << 3) + 7) as usize,
                 );
             }
@@ -165,6 +163,5 @@ pub fn update_hash(b: &Board, hash: BoardHash, m: &Move) -> BoardHash {
         None => 0,
         Some(passant) => unsafe { PASSANT_HASHES[passant as usize] },
     };
-    let new_hash = hash ^ move_hash ^ passant_hash ^ BoardHash::MAX;
-    return new_hash;
+    hash ^ move_hash ^ passant_hash ^ BoardHash::MAX
 }
