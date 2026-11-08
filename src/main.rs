@@ -15,10 +15,10 @@ use hash::hash_board;
 use hash::BoardHash;
 use UCICommand::*;
 
-pub const CONSIDERABLE_THRESHOLD: i16 = 100;
+pub const CONSIDERABLE_THRESHOLD: i32 = 1000;
 
-fn piece_values(file_path: String) -> Result<[[[i16; 64]; 7]; 2], csv::Error> {
-    let mut piece_values: [[[i16; 64]; 7]; 2] = [[[0; 64]; 7]; 2];
+fn piece_values(file_path: String) -> Result<[[[i32; 64]; 7]; 2], csv::Error> {
+    let mut piece_values: [[[i32; 64]; 7]; 2] = [[[0; 64]; 7]; 2];
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(file_path)?;
@@ -26,8 +26,8 @@ fn piece_values(file_path: String) -> Result<[[[i16; 64]; 7]; 2], csv::Error> {
         let record = record_result?;
         for (square, value) in record.into_iter().enumerate() {
             //println!("piece: {}, square: {}, value: {}", piece, square, value);
-            piece_values[0][piece][square] = value.parse::<i16>().unwrap();
-            piece_values[1][piece][56 + 2 * (square % 8) - square] = value.parse::<i16>().unwrap();
+            piece_values[0][piece][square] = value.parse::<i32>().unwrap();
+            piece_values[1][piece][56 + 2 * (square % 8) - square] = value.parse::<i32>().unwrap();
         }
     }
     Ok(piece_values)

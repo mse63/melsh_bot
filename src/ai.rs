@@ -68,7 +68,7 @@ impl AIPlayer {
             EvalResult {
                 sorted_moves: None,
                 depth: Pos(u8::MAX),
-                eval: CentiPawns(0),
+                eval: MilliPawns(0),
                 pruned: false,
             },
         );
@@ -217,7 +217,7 @@ impl AIPlayer {
                 EvalResult {
                     sorted_moves: Some(sorted_moves),
                     depth: Pos(u8::MAX),
-                    eval: CentiPawns(0),
+                    eval: MilliPawns(0),
                     pruned: false,
                 }
             };

@@ -17,11 +17,11 @@ For the purpose of move-ordering and pruning, the value of a move is heuristical
 
 ## Evaluation
 
-Each piece-square combination is assigned some integer number of centipawns. For example, a white knight on c3 might be worth 275 centipawns. The evaluation of a board is just the value of all the pieces the player has, minus the value of all the pieces the opponent has. Note that here "centipawns" are just used as a unit and doesn't necessarily bear any relation to the value of a pawn.
+Each piece-square combination is assigned some integer number of millipawns. For example, a white knight on c3 might be worth 2750 millipawns. The evaluation of a board is just the value of all the pieces the player has, minus the value of all the pieces the opponent has. Note that here "millipawns" are just used as a unit and doesn't necessarily bear any relation to the value of a pawn.
 
 For the purpose of evaluation, melsh_bot considers a Rook that can castle as a different piece than a Rook that cannot castle, with the former being called a Sook. The weights assigned to each piece-square combination are defined in the EvalFile. Each row in the EvalFile defines the values of a specific piece in the following order: Pawn, Knight, Bishop, Rook, Sook, Queen, King.
 
-Each item in the row represents the value in centipawns of that piece on a square, left to right, row by row, from its side to its opponents side. For example, a 280 in the 11th element of the 3rd row means that a white bishop on c2 or a black bishop on c7 are worth 280 centipawns. It is done this way to force color-independence: the evaluation of an equivalent board will be the same regardless of whether the player is white or black.
+Each item in the row represents the value in millipawns of that piece on a square, left to right, row by row, from its side to its opponents side. For example, a 2800 in the 11th element of the 3rd row means that a white bishop on c2 or a black bishop on c7 are worth 2800 millipawns. It is done this way to force color-independence: the evaluation of an equivalent board will be the same regardless of whether the player is white or black.
 
 ## UCI Options
 

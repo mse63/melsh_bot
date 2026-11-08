@@ -9,7 +9,7 @@ use crate::PieceType::*;
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Eval {
     Mate(i8),
-    CentiPawns(i16),
+    MilliPawns(i32),
 }
 
 use Eval::*;
@@ -24,7 +24,7 @@ impl Eval {
                     Mate(-x)
                 }
             }
-            CentiPawns(x) => CentiPawns(-x),
+            MilliPawns(x) => MilliPawns(-x),
         }
     }
 }
@@ -35,7 +35,7 @@ impl std::fmt::Display for Eval {
             Mate(i) => {
                 write!(f, "mate {}", i)
             }
-            CentiPawns(i) => {
+            MilliPawns(i) => {
                 write!(f, "cp {}", i)
             }
         }
@@ -51,15 +51,15 @@ impl std::cmp::PartialOrd for Eval {
 impl std::cmp::Ord for Eval {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (*self, *other) {
-            (CentiPawns(s), CentiPawns(o)) => s.cmp(&o),
-            (Mate(s), CentiPawns(_)) => {
+            (MilliPawns(s), MilliPawns(o)) => s.cmp(&o),
+            (Mate(s), MilliPawns(_)) => {
                 if s == 0 {
                     std::cmp::Ordering::Less
                 } else {
                     s.cmp(&0)
                 }
             }
-            (CentiPawns(_), Mate(o)) => {
+            (MilliPawns(_), Mate(o)) => {
                 if o == 0 {
                     std::cmp::Ordering::Greater
                 } else {
@@ -82,7 +82,7 @@ impl std::cmp::Ord for Eval {
 }
 
 pub struct Evaluator {
-    pub piece_values: [[[i16; 64]; 7]; 2],
+    pub piece_values: [[[i32; 64]; 7]; 2],
 }
 
 impl Evaluator {
@@ -94,15 +94,15 @@ impl Evaluator {
         }
     }
 
-    pub fn from_piece_values(piece_values: [[[i16; 64]; 7]; 2]) -> Self {
+    pub fn from_piece_values(piece_values: [[[i32; 64]; 7]; 2]) -> Self {
         Self { piece_values }
     }
 
-    pub fn eval_piece(&self, piece: &Piece, index: usize) -> i16 {
+    pub fn eval_piece(&self, piece: &Piece, index: usize) -> i32 {
         self.piece_values[piece.color as usize][piece.piece_type as usize][index]
     }
 
-    pub fn eval_move(&self, m: &Move) -> i16 {
+    pub fn eval_move(&self, m: &Move) -> i32 {
         match m {
             Slide {
                 from_index,
@@ -234,6 +234,6 @@ impl Evaluator {
                 }
             }
         }
-        CentiPawns(sum)
+        MilliPawns(sum)
     }
 }
