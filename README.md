@@ -29,6 +29,8 @@ melsh_bot has the following options:
   
   * EvalFile - the path to a .csv file containing the weights for the evaluation function (See Evaluation section).
    If an evaluation file is not given, default values are used (equivalent to those in piece_eval.csv).
+  * ConsiderableThreshold - Beyond the MaxDepth, only moves with cause a change in evaluation above this threshold in millipawns are evaluated
+  * MaxDepth - The maximum ply depth to evaluate
    
 ## Files
 

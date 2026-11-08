@@ -3,7 +3,6 @@ use crate::eval::Eval::*;
 use crate::eval::*;
 use crate::hash::*;
 
-use crate::CONSIDERABLE_THRESHOLD;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::*;
@@ -35,13 +34,17 @@ pub struct EvalResult {
 }
 
 pub struct AIPlayer {
-    evaluator: Evaluator,
+    pub evaluator: Evaluator,
+    pub considerable_threshold: i32,
+    pub max_depth: u8,
     hash_table: HashMap<BoardHash, EvalResult>,
 }
 
 impl AIPlayer {
     pub fn new(evaluator: Evaluator) -> Self {
         Self {
+            considerable_threshold: 1000,
+            max_depth: u8::MAX,
             evaluator,
             hash_table: HashMap::new(),
         }
@@ -58,8 +61,8 @@ impl AIPlayer {
             Some(time) => std::cmp::min((if time < 0 { 0 } else { time as u64 }) / 40, 5000),
         });
         let target_depth = match max_depth {
-            None => u8::MAX,
-            Some(depth) => i32::min(i32::max(depth, 0), u8::MAX as i32) as u8,
+            None => self.max_depth,
+            Some(depth) => i32::min(i32::max(depth, 0), self.max_depth as i32) as u8,
         };
 
         let end_time = Instant::now() + target_time;
@@ -74,7 +77,6 @@ impl AIPlayer {
         );
         let mut child_hash = 0;
         let board_hash = hash_board(b);
-
         for depth in 2..=target_depth {
             if depth != 2 && Instant::now() > end_time {
                 break;
@@ -235,7 +237,7 @@ impl AIPlayer {
         let mut eval_map = HashMap::new();
 
         if d == Considerables
-            && self.evaluator.eval_move(sorted_moves.first().unwrap()) < CONSIDERABLE_THRESHOLD
+            && self.evaluator.eval_move(sorted_moves.first().unwrap()) < self.considerable_threshold
         {
             let ans = EvalResult {
                 sorted_moves: Some(sorted_moves),
@@ -250,7 +252,7 @@ impl AIPlayer {
         let mut pruned = false;
 
         for m in &sorted_moves {
-            if d == Considerables && self.evaluator.eval_move(m) < CONSIDERABLE_THRESHOLD {
+            if d == Considerables && self.evaluator.eval_move(m) < self.considerable_threshold {
                 break;
             }
             let child_board_hash = update_hash(b, hash, m);
